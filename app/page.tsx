@@ -12,8 +12,9 @@ import { Label } from '@/components/ui/label';
 
 const WEEKS_IN_YEAR = 52;
 const DEFAULT_LIFE_EXPECTANCY = 80;
-const SQUARE_SIZE = 4;
-const SQUARE_MARGIN = 1;
+const SQUARE_SIZE = 10;
+const SQUARE_MARGIN = 2;
+const LABEL_MARGIN = 40;
 
 export default function LifeInWeeks() {
   const canvasRef = useRef<HTMLCanvasElement>(null);
@@ -41,27 +42,17 @@ export default function LifeInWeeks() {
     const totalWeeks = lifeExpectancy * WEEKS_IN_YEAR;
     const weeksLived = age * WEEKS_IN_YEAR;
 
-    const cols = Math.floor(Math.sqrt(totalWeeks));
-    const rows = Math.ceil(totalWeeks / cols);
-
-    const gridWidth =
-      cols * (SQUARE_SIZE + SQUARE_MARGIN) - SQUARE_MARGIN;
-    const gridHeight =
-      rows * (SQUARE_SIZE + SQUARE_MARGIN) - SQUARE_MARGIN;
-
-    const centerX = canvas.width / 2;
-    const centerY = canvas.height / 2;
-
     ctx.save();
     ctx.translate(
-      centerX + offset.x - (gridWidth * zoom) / 2,
-      centerY + offset.y - (gridHeight * zoom) / 2
+      LABEL_MARGIN + offset.x,
+      LABEL_MARGIN + offset.y
     );
     ctx.scale(zoom, zoom);
 
+    // Draw grid
     for (let week = 0; week < totalWeeks; week++) {
-      const col = week % cols;
-      const row = Math.floor(week / cols);
+      const col = week % WEEKS_IN_YEAR;
+      const row = Math.floor(week / WEEKS_IN_YEAR);
       const x = col * (SQUARE_SIZE + SQUARE_MARGIN);
       const y = row * (SQUARE_SIZE + SQUARE_MARGIN);
 
@@ -71,6 +62,40 @@ export default function LifeInWeeks() {
     }
 
     ctx.restore();
+
+    // Draw labels
+    ctx.font = '12px Arial';
+    ctx.fillStyle = '#000000';
+    ctx.textAlign = 'right';
+    ctx.textBaseline = 'middle';
+
+    for (let year = 0; year <= lifeExpectancy; year += 5) {
+      const y =
+        LABEL_MARGIN +
+        year * (SQUARE_SIZE + SQUARE_MARGIN) * zoom +
+        offset.y;
+      ctx.fillText(year.toString(), LABEL_MARGIN - 5, y);
+    }
+
+    ctx.textAlign = 'center';
+    ctx.textBaseline = 'top';
+    for (let week = 0; week <= WEEKS_IN_YEAR; week += 5) {
+      const x =
+        LABEL_MARGIN +
+        week * (SQUARE_SIZE + SQUARE_MARGIN) * zoom +
+        offset.x;
+      ctx.fillText(week.toString(), x, LABEL_MARGIN - 15);
+    }
+
+    // Draw axis labels
+    ctx.save();
+    ctx.translate(10, canvas.height / 2);
+    ctx.rotate(-Math.PI / 2);
+    ctx.textAlign = 'center';
+    ctx.fillText('Age', 0, 0);
+    ctx.restore();
+
+    ctx.fillText('Week of the Year', canvas.width / 2, 10);
   }, [age, lifeExpectancy, zoom, offset]);
 
   useEffect(() => {
@@ -94,22 +119,11 @@ export default function LifeInWeeks() {
       Math.min(10, zoom * zoomFactor)
     );
 
-    const canvasCenterX = canvas.width / 2;
-    const canvasCenterY = canvas.height / 2;
+    const mouseOffsetX = (mouseX - offset.x) / zoom;
+    const mouseOffsetY = (mouseY - offset.y) / zoom;
 
-    const mouseOffsetX =
-      (mouseX - canvasCenterX - offset.x) / zoom;
-    const mouseOffsetY =
-      (mouseY - canvasCenterY - offset.y) / zoom;
-
-    const newOffsetX = -(
-      mouseOffsetX * newZoom -
-      (mouseX - canvasCenterX)
-    );
-    const newOffsetY = -(
-      mouseOffsetY * newZoom -
-      (mouseY - canvasCenterY)
-    );
+    const newOffsetX = mouseX - mouseOffsetX * newZoom;
+    const newOffsetY = mouseY - mouseOffsetY * newZoom;
 
     setZoom(newZoom);
     setOffset({ x: newOffsetX, y: newOffsetY });
