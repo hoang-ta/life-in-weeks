@@ -93,7 +93,63 @@ export default function LifeGrid({
 
       ctx.fillStyle = fillColor;
       ctx.fillRect(x, y, SQUARE_SIZE, SQUARE_SIZE);
+
+      // Draw circle for single-box events
+      if (
+        event &&
+        event.startDate.getTime() ===
+          event.endDate.getTime()
+      ) {
+        ctx.beginPath();
+        ctx.arc(
+          x + SQUARE_SIZE / 2,
+          y + SQUARE_SIZE / 2,
+          SQUARE_SIZE / 2 + 1,
+          0,
+          2 * Math.PI
+        );
+        ctx.strokeStyle = event.color;
+        ctx.lineWidth = 2;
+        ctx.stroke();
+      }
     }
+
+    // Draw event labels and lines
+    lifeEvents.forEach((event) => {
+      const startWeek = Math.floor(
+        (event.startDate.getTime() -
+          dateOfBirth.getTime()) /
+          (7 * 24 * 60 * 60 * 1000)
+      );
+      const endWeek = Math.floor(
+        (event.endDate.getTime() - dateOfBirth.getTime()) /
+          (7 * 24 * 60 * 60 * 1000)
+      );
+      const midWeek = Math.floor((startWeek + endWeek) / 2);
+
+      const col = midWeek % WEEKS_IN_YEAR;
+      const row = Math.floor(midWeek / WEEKS_IN_YEAR);
+      const x =
+        col * (SQUARE_SIZE + SQUARE_MARGIN) +
+        SQUARE_SIZE / 2;
+      const y =
+        row * (SQUARE_SIZE + SQUARE_MARGIN) +
+        SQUARE_SIZE / 2;
+
+      // Draw line
+      ctx.beginPath();
+      ctx.moveTo(x, y);
+      ctx.lineTo(x, y - 30);
+      ctx.strokeStyle = event.color;
+      ctx.lineWidth = 1;
+      ctx.stroke();
+
+      // Draw text
+      ctx.font = '12px Arial';
+      ctx.fillStyle = event.color;
+      ctx.textAlign = 'center';
+      ctx.fillText(event.name, x, y - 35);
+    });
 
     ctx.restore();
 
