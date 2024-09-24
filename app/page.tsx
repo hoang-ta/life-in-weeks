@@ -1,101 +1,200 @@
-import Image from "next/image";
+'use client';
 
-export default function Home() {
+import React, {
+  useRef,
+  useEffect,
+  useState,
+  useCallback,
+} from 'react';
+import { Button } from '@/components/ui/button';
+import { Input } from '@/components/ui/input';
+import { Label } from '@/components/ui/label';
+
+const WEEKS_IN_YEAR = 52;
+const DEFAULT_LIFE_EXPECTANCY = 80;
+const SQUARE_SIZE = 4;
+const SQUARE_MARGIN = 1;
+
+export default function LifeInWeeks() {
+  const canvasRef = useRef<HTMLCanvasElement>(null);
+  const [age, setAge] = useState(30);
+  const [lifeExpectancy, setLifeExpectancy] = useState(
+    DEFAULT_LIFE_EXPECTANCY
+  );
+  const [zoom, setZoom] = useState(1);
+  const [offset, setOffset] = useState({ x: 0, y: 0 });
+  const [isDragging, setIsDragging] = useState(false);
+  const [dragStart, setDragStart] = useState({
+    x: 0,
+    y: 0,
+  });
+
+  const drawWeeks = useCallback(() => {
+    const canvas = canvasRef.current;
+    if (!canvas) return;
+
+    const ctx = canvas.getContext('2d');
+    if (!ctx) return;
+
+    ctx.clearRect(0, 0, canvas.width, canvas.height);
+
+    const totalWeeks = lifeExpectancy * WEEKS_IN_YEAR;
+    const weeksLived = age * WEEKS_IN_YEAR;
+
+    const cols = Math.floor(Math.sqrt(totalWeeks));
+    const rows = Math.ceil(totalWeeks / cols);
+
+    const gridWidth =
+      cols * (SQUARE_SIZE + SQUARE_MARGIN) - SQUARE_MARGIN;
+    const gridHeight =
+      rows * (SQUARE_SIZE + SQUARE_MARGIN) - SQUARE_MARGIN;
+
+    const centerX = canvas.width / 2;
+    const centerY = canvas.height / 2;
+
+    ctx.save();
+    ctx.translate(
+      centerX + offset.x - (gridWidth * zoom) / 2,
+      centerY + offset.y - (gridHeight * zoom) / 2
+    );
+    ctx.scale(zoom, zoom);
+
+    for (let week = 0; week < totalWeeks; week++) {
+      const col = week % cols;
+      const row = Math.floor(week / cols);
+      const x = col * (SQUARE_SIZE + SQUARE_MARGIN);
+      const y = row * (SQUARE_SIZE + SQUARE_MARGIN);
+
+      ctx.fillStyle =
+        week < weeksLived ? '#3b82f6' : '#e5e7eb';
+      ctx.fillRect(x, y, SQUARE_SIZE, SQUARE_SIZE);
+    }
+
+    ctx.restore();
+  }, [age, lifeExpectancy, zoom, offset]);
+
+  useEffect(() => {
+    drawWeeks();
+  }, [drawWeeks]);
+
+  const handleWheel = (
+    e: React.WheelEvent<HTMLCanvasElement>
+  ) => {
+    e.preventDefault();
+    const canvas = canvasRef.current;
+    if (!canvas) return;
+
+    const rect = canvas.getBoundingClientRect();
+    const mouseX = e.clientX - rect.left;
+    const mouseY = e.clientY - rect.top;
+
+    const zoomFactor = e.deltaY > 0 ? 0.9 : 1.1;
+    const newZoom = Math.max(
+      0.1,
+      Math.min(10, zoom * zoomFactor)
+    );
+
+    const canvasCenterX = canvas.width / 2;
+    const canvasCenterY = canvas.height / 2;
+
+    const mouseOffsetX =
+      (mouseX - canvasCenterX - offset.x) / zoom;
+    const mouseOffsetY =
+      (mouseY - canvasCenterY - offset.y) / zoom;
+
+    const newOffsetX = -(
+      mouseOffsetX * newZoom -
+      (mouseX - canvasCenterX)
+    );
+    const newOffsetY = -(
+      mouseOffsetY * newZoom -
+      (mouseY - canvasCenterY)
+    );
+
+    setZoom(newZoom);
+    setOffset({ x: newOffsetX, y: newOffsetY });
+  };
+
+  const handleMouseDown = (
+    e: React.MouseEvent<HTMLCanvasElement>
+  ) => {
+    setIsDragging(true);
+    setDragStart({
+      x: e.clientX - offset.x,
+      y: e.clientY - offset.y,
+    });
+  };
+
+  const handleMouseMove = (
+    e: React.MouseEvent<HTMLCanvasElement>
+  ) => {
+    if (!isDragging) return;
+    const newOffset = {
+      x: e.clientX - dragStart.x,
+      y: e.clientY - dragStart.y,
+    };
+    setOffset(newOffset);
+  };
+
+  const handleMouseUp = () => {
+    setIsDragging(false);
+  };
+
+  useEffect(() => {
+    window.addEventListener('mouseup', handleMouseUp);
+    return () => {
+      window.removeEventListener('mouseup', handleMouseUp);
+    };
+  }, []);
+
   return (
-    <div className="grid grid-rows-[20px_1fr_20px] items-center justify-items-center min-h-screen p-8 pb-20 gap-16 sm:p-20 font-[family-name:var(--font-geist-sans)]">
-      <main className="flex flex-col gap-8 row-start-2 items-center sm:items-start">
-        <Image
-          className="dark:invert"
-          src="https://nextjs.org/icons/next.svg"
-          alt="Next.js logo"
-          width={180}
-          height={38}
-          priority
-        />
-        <ol className="list-inside list-decimal text-sm text-center sm:text-left font-[family-name:var(--font-geist-mono)]">
-          <li className="mb-2">
-            Get started by editing{" "}
-            <code className="bg-black/[.05] dark:bg-white/[.06] px-1 py-0.5 rounded font-semibold">
-              app/page.tsx
-            </code>
-            .
-          </li>
-          <li>Save and see your changes instantly.</li>
-        </ol>
-
-        <div className="flex gap-4 items-center flex-col sm:flex-row">
-          <a
-            className="rounded-full border border-solid border-transparent transition-colors flex items-center justify-center bg-foreground text-background gap-2 hover:bg-[#383838] dark:hover:bg-[#ccc] text-sm sm:text-base h-10 sm:h-12 px-4 sm:px-5"
-            href="https://vercel.com/new?utm_source=create-next-app&utm_medium=appdir-template-tw&utm_campaign=create-next-app"
-            target="_blank"
-            rel="noopener noreferrer"
-          >
-            <Image
-              className="dark:invert"
-              src="https://nextjs.org/icons/vercel.svg"
-              alt="Vercel logomark"
-              width={20}
-              height={20}
-            />
-            Deploy now
-          </a>
-          <a
-            className="rounded-full border border-solid border-black/[.08] dark:border-white/[.145] transition-colors flex items-center justify-center hover:bg-[#f2f2f2] dark:hover:bg-[#1a1a1a] hover:border-transparent text-sm sm:text-base h-10 sm:h-12 px-4 sm:px-5 sm:min-w-44"
-            href="https://nextjs.org/docs?utm_source=create-next-app&utm_medium=appdir-template-tw&utm_campaign=create-next-app"
-            target="_blank"
-            rel="noopener noreferrer"
-          >
-            Read our docs
-          </a>
+    <div className='flex flex-col items-center space-y-4 p-4'>
+      <h1 className='text-2xl font-bold'>Life in Weeks</h1>
+      <div className='flex space-x-4'>
+        <div>
+          <Label htmlFor='age'>Your Age</Label>
+          <Input
+            id='age'
+            type='number'
+            value={age}
+            onChange={(e) => setAge(Number(e.target.value))}
+            min={0}
+            max={lifeExpectancy}
+          />
         </div>
-      </main>
-      <footer className="row-start-3 flex gap-6 flex-wrap items-center justify-center">
-        <a
-          className="flex items-center gap-2 hover:underline hover:underline-offset-4"
-          href="https://nextjs.org/learn?utm_source=create-next-app&utm_medium=appdir-template-tw&utm_campaign=create-next-app"
-          target="_blank"
-          rel="noopener noreferrer"
-        >
-          <Image
-            aria-hidden
-            src="https://nextjs.org/icons/file.svg"
-            alt="File icon"
-            width={16}
-            height={16}
+        <div>
+          <Label htmlFor='lifeExpectancy'>
+            Life Expectancy
+          </Label>
+          <Input
+            id='lifeExpectancy'
+            type='number'
+            value={lifeExpectancy}
+            onChange={(e) =>
+              setLifeExpectancy(Number(e.target.value))
+            }
+            min={age}
+            max={120}
           />
-          Learn
-        </a>
-        <a
-          className="flex items-center gap-2 hover:underline hover:underline-offset-4"
-          href="https://vercel.com/templates?framework=next.js&utm_source=create-next-app&utm_medium=appdir-template-tw&utm_campaign=create-next-app"
-          target="_blank"
-          rel="noopener noreferrer"
-        >
-          <Image
-            aria-hidden
-            src="https://nextjs.org/icons/window.svg"
-            alt="Window icon"
-            width={16}
-            height={16}
-          />
-          Examples
-        </a>
-        <a
-          className="flex items-center gap-2 hover:underline hover:underline-offset-4"
-          href="https://nextjs.org?utm_source=create-next-app&utm_medium=appdir-template-tw&utm_campaign=create-next-app"
-          target="_blank"
-          rel="noopener noreferrer"
-        >
-          <Image
-            aria-hidden
-            src="https://nextjs.org/icons/globe.svg"
-            alt="Globe icon"
-            width={16}
-            height={16}
-          />
-          Go to nextjs.org →
-        </a>
-      </footer>
+        </div>
+      </div>
+      <Button
+        onClick={() => {
+          setZoom(1);
+          setOffset({ x: 0, y: 0 });
+        }}
+      >
+        Reset View
+      </Button>
+      <canvas
+        ref={canvasRef}
+        width={800}
+        height={600}
+        onWheel={handleWheel}
+        onMouseDown={handleMouseDown}
+        onMouseMove={handleMouseMove}
+        className='border border-gray-300 rounded cursor-move'
+      />
     </div>
   );
 }
