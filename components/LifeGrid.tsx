@@ -4,12 +4,13 @@ import React, {
   useState,
   useCallback,
 } from 'react';
-import { Button } from './ui/button';
+import { Button } from '@/components/ui/button';
 
 const WEEKS_IN_YEAR = 52;
 const SQUARE_SIZE = 10;
 const SQUARE_MARGIN = 2;
 const LABEL_MARGIN = 40;
+const EVENT_MARGIN = 150; // Space for event labels on each side
 
 interface LifeEvent {
   name: string;
@@ -63,7 +64,7 @@ export default function LifeGrid({
 
     ctx.save();
     ctx.translate(
-      LABEL_MARGIN + offset.x,
+      LABEL_MARGIN + EVENT_MARGIN + offset.x,
       LABEL_MARGIN + offset.y
     );
     ctx.scale(zoom, zoom);
@@ -93,28 +94,9 @@ export default function LifeGrid({
 
       ctx.fillStyle = fillColor;
       ctx.fillRect(x, y, SQUARE_SIZE, SQUARE_SIZE);
-
-      // Draw circle for single-box events
-      if (
-        event &&
-        event.startDate.getTime() ===
-          event.endDate.getTime()
-      ) {
-        ctx.beginPath();
-        ctx.arc(
-          x + SQUARE_SIZE / 2,
-          y + SQUARE_SIZE / 2,
-          SQUARE_SIZE / 2 + 1,
-          0,
-          2 * Math.PI
-        );
-        ctx.strokeStyle = event.color;
-        ctx.lineWidth = 2;
-        ctx.stroke();
-      }
     }
 
-    // Draw event labels and lines
+    // Draw event indicators and labels
     lifeEvents.forEach((event) => {
       const startWeek = Math.floor(
         (event.startDate.getTime() -
@@ -125,30 +107,81 @@ export default function LifeGrid({
         (event.endDate.getTime() - dateOfBirth.getTime()) /
           (7 * 24 * 60 * 60 * 1000)
       );
-      const midWeek = Math.floor((startWeek + endWeek) / 2);
+      const isSingleDay = startWeek === endWeek;
 
-      const col = midWeek % WEEKS_IN_YEAR;
-      const row = Math.floor(midWeek / WEEKS_IN_YEAR);
-      const x =
-        col * (SQUARE_SIZE + SQUARE_MARGIN) +
-        SQUARE_SIZE / 2;
-      const y =
-        row * (SQUARE_SIZE + SQUARE_MARGIN) +
-        SQUARE_SIZE / 2;
+      const startCol = startWeek % WEEKS_IN_YEAR;
+      const startRow = Math.floor(
+        startWeek / WEEKS_IN_YEAR
+      );
+      const endCol = endWeek % WEEKS_IN_YEAR;
+      const endRow = Math.floor(endWeek / WEEKS_IN_YEAR);
 
-      // Draw line
-      ctx.beginPath();
-      ctx.moveTo(x, y);
-      ctx.lineTo(x, y - 30);
-      ctx.strokeStyle = event.color;
-      ctx.lineWidth = 1;
-      ctx.stroke();
+      const startX =
+        startCol * (SQUARE_SIZE + SQUARE_MARGIN);
+      const startY =
+        startRow * (SQUARE_SIZE + SQUARE_MARGIN);
+      const endX = endCol * (SQUARE_SIZE + SQUARE_MARGIN);
+      const endY = endRow * (SQUARE_SIZE + SQUARE_MARGIN);
 
-      // Draw text
-      ctx.font = '12px Arial';
-      ctx.fillStyle = event.color;
-      ctx.textAlign = 'center';
-      ctx.fillText(event.name, x, y - 35);
+      if (isSingleDay) {
+        // Draw circle for single-day events
+        ctx.beginPath();
+        ctx.arc(
+          startX + SQUARE_SIZE / 2,
+          startY + SQUARE_SIZE / 2,
+          SQUARE_SIZE / 2 + 1,
+          0,
+          2 * Math.PI
+        );
+        ctx.strokeStyle = event.color;
+        ctx.lineWidth = 2;
+        ctx.stroke();
+
+        // Draw label on the left side
+        ctx.save();
+        ctx.translate(-EVENT_MARGIN, 0);
+        ctx.textAlign = 'right';
+        ctx.textBaseline = 'middle';
+        ctx.font = '12px Arial';
+        ctx.fillStyle = event.color;
+        ctx.fillText(
+          event.name,
+          -5,
+          startY + SQUARE_SIZE / 2
+        );
+
+        // Draw line to the event
+        ctx.beginPath();
+        ctx.moveTo(-5, startY + SQUARE_SIZE / 2);
+        ctx.lineTo(startX, startY + SQUARE_SIZE / 2);
+        ctx.strokeStyle = event.color;
+        ctx.lineWidth = 1;
+        ctx.stroke();
+        ctx.restore();
+      } else {
+        // Draw label on the right side for multi-day events
+        ctx.save();
+        ctx.translate(gridWidth + 5, 0);
+        ctx.textAlign = 'left';
+        ctx.textBaseline = 'middle';
+        ctx.font = '12px Arial';
+        ctx.fillStyle = event.color;
+        const midY = (startY + endY) / 2 + SQUARE_SIZE / 2;
+        ctx.fillText(event.name, 5, midY);
+
+        // Draw line to the event
+        ctx.beginPath();
+        ctx.moveTo(5, midY);
+        ctx.lineTo(0, midY);
+        ctx.lineTo(
+          endX + SQUARE_SIZE,
+          endY + SQUARE_SIZE / 2
+        );
+        ctx.strokeStyle = event.color;
+        ctx.lineWidth = 1;
+        ctx.stroke();
+        ctx.restore();
+      }
     });
 
     ctx.restore();
@@ -164,7 +197,11 @@ export default function LifeGrid({
         LABEL_MARGIN +
         year * (SQUARE_SIZE + SQUARE_MARGIN) * zoom +
         offset.y;
-      ctx.fillText(year.toString(), LABEL_MARGIN - 5, y);
+      ctx.fillText(
+        year.toString(),
+        LABEL_MARGIN + EVENT_MARGIN - 5,
+        y
+      );
     }
 
     ctx.textAlign = 'center';
@@ -172,6 +209,7 @@ export default function LifeGrid({
     for (let week = 0; week <= WEEKS_IN_YEAR; week += 5) {
       const x =
         LABEL_MARGIN +
+        EVENT_MARGIN +
         week * (SQUARE_SIZE + SQUARE_MARGIN) * zoom +
         offset.x;
       ctx.fillText(week.toString(), x, LABEL_MARGIN - 15);
@@ -269,7 +307,7 @@ export default function LifeGrid({
       </Button>
       <canvas
         ref={canvasRef}
-        width={800}
+        width={1100}
         height={600}
         onWheel={handleWheel}
         onMouseDown={handleMouseDown}
